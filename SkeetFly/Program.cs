@@ -11,12 +11,27 @@ namespace SkeetFly
     using System.Reflection;
     using System.Text;
 
+    public static class DictUtils
+    {
+        public static void AddEntryToList<T1, T2>(Dictionary<T1, List<T2>> d, T1 key, T2 listEntry)
+        {
+            if (!d.TryGetValue(key, out var list))
+            {
+                list = new List<T2>();
+                d.Add(key, list);
+            }
+
+            list.Add(listEntry);
+        }
+    }
+
     public class X
     {
         public int I1 { get; set; } = 20;
     }
     public class Test
     {
+        private static Dictionary<Type, List<Func<Type, object>>> dict = new Dictionary<Type, List<Func<Type, object>>>();
         static void Main()
         {
             var properties = typeof(X).GetProperties();
@@ -25,8 +40,12 @@ namespace SkeetFly
                 MethodInfo mi = property.GetGetMethod();
 
                 Func<X, int> func1 = (Func<X, int>)Delegate.CreateDelegate(typeof(Func<X, int>), mi);
-                
-                var func = MagicMethod<X, mi.ReturnType>(mi);
+
+                MethodInfo genericHelper = typeof(Test).GetMethod("MagicMethod", BindingFlags.Static | BindingFlags.NonPublic);
+                MethodInfo constructedHelper = genericHelper.MakeGenericMethod(typeof(X), mi.ReturnType);
+
+                var func = (Func<X, object>)constructedHelper.Invoke(null, new object[] { mi });
+                DictUtils.AddEntryToList(dict, typeof(X), func);
                 var result = func(new X());
                 Console.WriteLine();
             }
